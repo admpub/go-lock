@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/viney-shih/go-lock"
+	"github.com/admpub/go-lock"
 )
 
 func ExampleCASMutex() {
