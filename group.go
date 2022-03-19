@@ -76,8 +76,8 @@ func (m *group) UnlockAndFree(i interface{}) {
 	if !ok {
 		return
 	}
-	atomic.AddInt32(&en.ref, -1)
-	if atomic.LoadInt32(&en.ref) <= 0 {
+	ref := atomic.AddInt32(&en.ref, -1)
+	if ref < 1 {
 		m.mu.Lock()
 		delete(m.group, i)
 		m.mu.Unlock()
