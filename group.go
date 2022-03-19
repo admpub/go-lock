@@ -30,7 +30,7 @@ func NewGroup(fn func() Mutex) Group {
 }
 
 type group struct {
-	mu    sync.RWMutex
+	mu    sync.Mutex
 	fn    func() Mutex
 	group map[interface{}]*entry
 }
@@ -40,21 +40,22 @@ type entry struct {
 	mu  Mutex
 }
 
-func (m *group) get(i interface{}, ref int32) Mutex {
-	m.mu.RLock()
+func (m *group) get(i interface{}, ref int32, callbacks ...func(*entry)) Mutex {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	en, ok := m.group[i]
-	m.mu.RUnlock()
 	if !ok {
 		if ref > 0 {
 			en = &entry{mu: m.fn()}
-			m.mu.Lock()
 			m.group[i] = en
-			m.mu.Unlock()
 		} else {
 			return nil
 		}
 	}
 	atomic.AddInt32(&en.ref, ref)
+	for _, cb := range callbacks {
+		cb(en)
+	}
 	return en.mu
 }
 
@@ -70,41 +71,45 @@ func (m *group) Unlock(i interface{}) {
 }
 
 func (m *group) UnlockAndFree(i interface{}) {
-	m.mu.RLock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	en, ok := m.group[i]
-	m.mu.RUnlock()
 	if !ok {
 		return
 	}
 	ref := atomic.AddInt32(&en.ref, -1)
 	if ref < 1 {
-		m.mu.Lock()
 		delete(m.group, i)
-		m.mu.Unlock()
 	}
 	en.mu.Unlock()
 }
 
-func (m *group) TryLock(i interface{}) bool {
-	locked := m.get(i, 1).TryLock()
-	if !locked {
-		m.get(i, -1)
-	}
-	return locked
+func (m *group) TryLock(i interface{}) (locked bool) {
+	m.get(i, 1, func(en *entry) {
+		locked = en.mu.TryLock()
+		if !locked {
+			atomic.AddInt32(&en.ref, -1)
+		}
+	}).TryLock()
+	return
 }
 
-func (m *group) TryLockWithTimeout(i interface{}, timeout time.Duration) bool {
-	locked := m.get(i, 1).TryLockWithTimeout(timeout)
-	if !locked {
-		m.get(i, -1)
-	}
-	return locked
+func (m *group) TryLockWithTimeout(i interface{}, timeout time.Duration) (locked bool) {
+	m.get(i, 1, func(en *entry) {
+		locked = en.mu.TryLockWithTimeout(timeout)
+		if !locked {
+			atomic.AddInt32(&en.ref, -1)
+		}
+	})
+	return
 }
 
-func (m *group) TryLockWithContext(i interface{}, ctx context.Context) bool {
-	locked := m.get(i, 1).TryLockWithContext(ctx)
-	if !locked {
-		m.get(i, -1)
-	}
-	return locked
+func (m *group) TryLockWithContext(i interface{}, ctx context.Context) (locked bool) {
+	m.get(i, 1, func(en *entry) {
+		locked = en.mu.TryLockWithContext(ctx)
+		if !locked {
+			atomic.AddInt32(&en.ref, -1)
+		}
+	})
+	return
 }

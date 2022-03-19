@@ -138,10 +138,10 @@ func BenchmarkGroup(b *testing.B) {
 		for pb.Next() {
 			mu.Lock("g")
 			a++
-			mu.Unlock("g")
+			mu.UnlockAndFree("g")
 			mu.Lock("g")
 			c = a
-			mu.Unlock("g")
+			mu.UnlockAndFree("g")
 		}
 	})
 	_ = a
