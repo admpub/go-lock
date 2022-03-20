@@ -19,9 +19,7 @@ type Group interface {
 
 func NewGroup(fn func() Mutex) Group {
 	if fn == nil {
-		fn = func() Mutex {
-			return NewChanMutex()
-		}
+		fn = NewChanMutexInterface
 	}
 	return &group{
 		fn:    fn,

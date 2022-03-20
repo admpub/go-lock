@@ -128,8 +128,28 @@ func TestGroupTryLockContext(t *testing.T) {
 	}
 }
 
-func BenchmarkGroup(b *testing.B) {
+func BenchmarkGroupChanMutext(b *testing.B) {
 	mu := NewGroup(nil)
+	a := 0
+	c := 0
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			mu.Lock("g")
+			a++
+			mu.UnlockAndFree("g")
+			mu.Lock("g")
+			c = a
+			mu.UnlockAndFree("g")
+		}
+	})
+	_ = a
+	_ = c
+}
+
+func BenchmarkGroupCASMutex(b *testing.B) {
+	mu := NewGroup(NewCASMutexInterface)
 	a := 0
 	c := 0
 	b.ReportAllocs()

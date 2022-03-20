@@ -29,6 +29,10 @@ func NewCASMutex() *CASMutex {
 	}
 }
 
+func NewCASMutexInterface() Mutex {
+	return NewCASMutex()
+}
+
 type casState int32
 
 const (

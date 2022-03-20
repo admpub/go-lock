@@ -17,6 +17,10 @@ func NewChanMutex() *ChanMutex {
 	}
 }
 
+func NewChanMutexInterface() Mutex {
+	return NewChanMutex()
+}
+
 // Lock acquires the lock.
 // If it is currently held by others, Lock will wait until it has a chance to acquire it.
 func (m *ChanMutex) Lock() {
